@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>dry-ice-course-manager</title>
+
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#0b0f1a" />
+</head>
+
+<body>
+  <header class="top">
+    <div class="row">
+      <!-- 日付 -->
+      <div class="dateBox" aria-label="日付">
+        <button class="iconBtn" id="datePrev" type="button" aria-label="前日">◀</button>
+
+        <div class="dateLabel">
+          <div class="dateTitle">日付</div>
+          <div class="dateValue" id="dateText">----</div>
+        </div>
+
+        <button class="iconBtn" id="dateNext" type="button" aria-label="翌日">▶</button>
+      </div>
+
+      <!-- 基準（25/30） -->
+      <div class="pillGroup" role="group" aria-label="基準切替（25/30）">
+        <button class="pill active" id="quick30" type="button" data-base="30">1〆=30</button>
+        <button class="pill" id="base25" type="button" data-base="25">25</button>
+        <button class="pill" id="base30" type="button" data-base="30">30</button>
+      </div>
+
+      <!-- 右側 -->
+      <div class="rightBox">
+        <div class="chip">選択 <b id="selectedCount">0</b></div>
+        <button class="btnPrimary" id="btnSave" type="button">保存</button>
+      </div>
+    </div>
+
+    <div class="row sub">
+      <button class="btnDanger" id="btnReset" type="button">リセット</button>
+      <div class="status">
+        <span class="dot" id="dotLoaded"></span>
+        <span id="statusText">未読込　未保存</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- CSV -->
+    <section class="card panel">
+      <div class="panelHead">
+        <h2>CSV貼り付け</h2>
+        <div class="chip">残り <b id="remainingCount">0</b></div>
+      </div>
+
+      <textarea id="csvInput" spellcheck="false" placeholder="正式CSV（固定）:
+shime_size,25
+course,bin,shime,cut
+501,1,1,8
+505,2,0,10
+
+※OCRは使わない
+※便は1/2で分離（合算禁止）"></textarea>
+
+      <div class="panelActions">
+        <button class="btnWide" id="btnLoadCsv" type="button">CSV読み込み</button>
+        <button class="btnGhost" id="btnClearSelection" type="button">選択解除</button>
+      </div>
+
+      <ul class="hint">
+        <li>形式：<b>shime_size,25/30</b> + <b>course,bin,shime,cut</b></li>
+        <li>便は<b>1 / 2</b>で分離（絶対合算しない）</li>
+        <li>基準はCSV優先。手動上書きは警告（OVERRIDE）</li>
+      </ul>
+    </section>
+
+    <!-- 未振り分け -->
+    <section class="card panel">
+      <div class="panelHead">
+        <h2>未振り分け（CSV順）</h2>
+        <div class="chip"><b id="unassignedCount">0</b> 件</div>
+      </div>
+
+      <div class="quickMoves" aria-label="一括移動（選択分）">
+        <button class="btnMini" type="button" data-move="A">Aへ</button>
+        <button class="btnMini" type="button" data-move="B">Bへ</button>
+        <button class="btnMini" type="button" data-move="C">Cへ</button>
+        <button class="btnMini" type="button" data-move="D">Dへ</button>
+        <button class="btnMini" type="button" data-move="E">Eへ</button>
+        <button class="btnMini" type="button" data-move="PLUS">+へ</button>
+      </div>
+
+      <div id="unassignedList" class="list" aria-label="未振り分け一覧"></div>
+
+      <div class="addGroupRow">
+        <button class="btnGhost" id="btnAddGroup" type="button">＋ グループ追加</button>
+      </div>
+    </section>
+
+    <!-- 表示モード -->
+    <section class="card panel">
+      <div class="panelHead">
+        <h2>紙ビュー</h2>
+        <button class="btnGhost" id="btnChecklist" type="button">目視チェック</button>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="表示切替">
+        <button class="tab active" type="button" data-view="cards" role="tab">カード</button>
+        <button class="tab" type="button" data-view="paper" role="tab">表</button>
+        <button class="tab" type="button" data-view="data" role="tab">コード</button>
+      </div>
+
+      <div id="viewCards" class="view active" aria-label="カード表示"></div>
+      <div id="viewPaper" class="view" aria-label="表表示"></div>
+      <div id="viewData" class="view" aria-label="コード表示"></div>
+    </section>
+  </main>
+
+  <!-- フッター合計 -->
+  <footer class="foot">
+    <div class="summary">
+      <div class="sumItem">基準：<b id="baseText">30</b></div>
+      <div class="sumItem">総〆：<b id="sumShime">0</b></div>
+      <div class="sumItem">総カット：<b id="sumCut">0</b></div>
+      <div class="sumItem">総個数：<b id="sumPieces">0</b></div>
+      <div class="sumItem">ケース換算：<b id="sumCases">0</b></div>
+    </div>
+  </footer>
+
+  <!-- 編集モーダル -->
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="modalCard" role="dialog" aria-modal="true" aria-label="編集">
+      <div class="modalHead">
+        <h3 id="modalTitle">編集</h3>
+        <button class="iconBtn" id="modalClose" type="button" aria-label="閉じる">✕</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="grid2">
+          <label>course
+            <input id="editCourse" inputmode="numeric" />
+          </label>
+
+          <label>bin
+            <select id="editBin">
+              <option value="1">1便</option>
+              <option value="2">2便</option>
+            </select>
+          </label>
+
+          <label>shime
+            <input id="editShime" inputmode="numeric" />
+          </label>
+
+          <label>cut
+            <input id="editCut" inputmode="numeric" />
+          </label>
+        </div>
+
+        <div class="warn" id="editWarn" hidden></div>
+      </div>
+
+      <div class="modalActions">
+        <button class="btnGhost" id="modalDelete" type="button">削除</button>
+        <button class="btnPrimary" id="modalOk" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JSはdeferでDOM後に確実実行（クリック死なない） -->
+  <script defer src="app.js"></script>
+</body>
+</html>
